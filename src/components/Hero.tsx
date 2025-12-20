@@ -47,10 +47,12 @@ const Hero = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 opacity-0 animate-fade-up delay-300">
-            <Button variant="zen" size="xl" className="w-full sm:w-auto group">
-              Explore Artifacts
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </Button>
+            <a href="/generate" className="w-full sm:w-auto">
+              <Button variant="zen" size="xl" className="w-full group">
+                Start Generating
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </a>
             <Button variant="zen-outline" size="xl" className="w-full sm:w-auto">
               Read Methodology
             </Button>

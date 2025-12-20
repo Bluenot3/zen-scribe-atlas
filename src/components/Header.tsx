@@ -34,9 +34,11 @@ const Header = () => {
             <Button variant="zen-ghost" size="sm" className="hidden sm:inline-flex">
               Subscribe
             </Button>
-            <Button variant="zen" size="sm">
-              Access Briefings
-            </Button>
+            <a href="/generate">
+              <Button variant="zen" size="sm">
+                Generate Content
+              </Button>
+            </a>
           </div>
         </div>
       </div>
