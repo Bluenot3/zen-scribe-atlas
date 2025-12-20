@@ -2,3 +2,9 @@ project_id = "zyutxruhmquiakjsjgbt"
 
 [functions.generate-artifact]
 verify_jwt = false
+
+[functions.regenerate-section]
+verify_jwt = false
+
+[functions.scrape-urls]
+verify_jwt = false

@@ -1,5 +1,9 @@
-import { GeneratedArtifact, Section, KeyMetric } from "@/lib/api/generate";
-import { Clock, ExternalLink, TrendingUp, TrendingDown, Minus, Quote, AlertTriangle, CheckCircle } from "lucide-react";
+import { useState } from "react";
+import { GeneratedArtifact, Section, KeyMetric, regenerateSection, StyleType } from "@/lib/api/generate";
+import { Clock, ExternalLink, TrendingUp, TrendingDown, Minus, Quote, AlertTriangle, CheckCircle, RefreshCw, X, Loader2, Edit3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { 
   BarChart, 
   Bar, 
@@ -19,6 +23,8 @@ import {
 
 interface ArtifactRendererProps {
   artifact: GeneratedArtifact;
+  onUpdate: (artifact: GeneratedArtifact) => void;
+  style?: StyleType;
 }
 
 const CHART_COLORS = ["hsl(38, 92%, 50%)", "hsl(38, 60%, 40%)", "hsl(220, 15%, 40%)", "hsl(220, 15%, 55%)", "hsl(38, 40%, 60%)"];
@@ -55,13 +61,7 @@ const DataChart = ({ section }: { section: Section }) => {
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 20%)" />
             <XAxis dataKey="name" stroke="hsl(220, 10%, 55%)" fontSize={12} />
             <YAxis stroke="hsl(220, 10%, 55%)" fontSize={12} />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: "hsl(220, 18%, 10%)", 
-                border: "1px solid hsl(220, 15%, 18%)",
-                borderRadius: "4px"
-              }} 
-            />
+            <Tooltip contentStyle={{ backgroundColor: "hsl(220, 18%, 10%)", border: "1px solid hsl(220, 15%, 18%)", borderRadius: "4px" }} />
             <Bar dataKey="value" fill="hsl(38, 92%, 50%)" radius={[2, 2, 0, 0]} />
           </BarChart>
         ) : chartType === "line" ? (
@@ -69,13 +69,7 @@ const DataChart = ({ section }: { section: Section }) => {
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 20%)" />
             <XAxis dataKey="name" stroke="hsl(220, 10%, 55%)" fontSize={12} />
             <YAxis stroke="hsl(220, 10%, 55%)" fontSize={12} />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: "hsl(220, 18%, 10%)", 
-                border: "1px solid hsl(220, 15%, 18%)",
-                borderRadius: "4px"
-              }} 
-            />
+            <Tooltip contentStyle={{ backgroundColor: "hsl(220, 18%, 10%)", border: "1px solid hsl(220, 15%, 18%)", borderRadius: "4px" }} />
             <Line type="monotone" dataKey="value" stroke="hsl(38, 92%, 50%)" strokeWidth={2} dot={{ fill: "hsl(38, 92%, 50%)" }} />
           </LineChart>
         ) : chartType === "area" ? (
@@ -83,37 +77,17 @@ const DataChart = ({ section }: { section: Section }) => {
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 20%)" />
             <XAxis dataKey="name" stroke="hsl(220, 10%, 55%)" fontSize={12} />
             <YAxis stroke="hsl(220, 10%, 55%)" fontSize={12} />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: "hsl(220, 18%, 10%)", 
-                border: "1px solid hsl(220, 15%, 18%)",
-                borderRadius: "4px"
-              }} 
-            />
+            <Tooltip contentStyle={{ backgroundColor: "hsl(220, 18%, 10%)", border: "1px solid hsl(220, 15%, 18%)", borderRadius: "4px" }} />
             <Area type="monotone" dataKey="value" stroke="hsl(38, 92%, 50%)" fill="hsl(38, 50%, 30%)" />
           </AreaChart>
         ) : (
           <PieChart>
-            <Pie
-              data={points}
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              dataKey="value"
-              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              labelLine={false}
-            >
+            <Pie data={points} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
               {points.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: "hsl(220, 18%, 10%)", 
-                border: "1px solid hsl(220, 15%, 18%)",
-                borderRadius: "4px"
-              }} 
-            />
+            <Tooltip contentStyle={{ backgroundColor: "hsl(220, 18%, 10%)", border: "1px solid hsl(220, 15%, 18%)", borderRadius: "4px" }} />
           </PieChart>
         )}
       </ResponsiveContainer>
@@ -128,7 +102,7 @@ const TimelineSection = ({ section }: { section: Section }) => {
     <div className="relative pl-8 space-y-8">
       <div className="absolute left-3 top-2 bottom-2 w-px bg-gradient-to-b from-primary via-primary/50 to-transparent" />
       {events.map((event, index) => (
-        <div key={index} className="relative">
+        <div key={index} className="relative animate-fade-up" style={{ animationDelay: `${index * 100}ms` }}>
           <div className="absolute -left-5 w-3 h-3 rounded-full bg-primary border-2 border-background" />
           <div className="zen-mono text-primary text-sm mb-1">{event.year}</div>
           <h4 className="font-serif font-semibold text-foreground mb-1">{event.title}</h4>
@@ -150,8 +124,7 @@ const ComparisonSection = ({ section }: { section: Section }) => {
           <div className="space-y-4">
             <div>
               <div className="flex items-center gap-2 text-green-500 text-xs font-medium mb-2">
-                <CheckCircle className="w-3 h-3" />
-                PROS
+                <CheckCircle className="w-3 h-3" />PROS
               </div>
               <ul className="space-y-1">
                 {item.pros.map((pro, i) => (
@@ -161,8 +134,7 @@ const ComparisonSection = ({ section }: { section: Section }) => {
             </div>
             <div>
               <div className="flex items-center gap-2 text-red-500 text-xs font-medium mb-2">
-                <AlertTriangle className="w-3 h-3" />
-                CONS
+                <AlertTriangle className="w-3 h-3" />CONS
               </div>
               <ul className="space-y-1">
                 {item.cons.map((con, i) => (
@@ -198,97 +170,208 @@ const QuoteSection = ({ section }: { section: Section }) => {
   );
 };
 
-const SectionRenderer = ({ section, index }: { section: Section; index: number }) => {
-  switch (section.type) {
-    case "intro":
-      return (
-        <div className="text-lg md:text-xl text-foreground leading-relaxed font-serif">
-          {section.content}
-        </div>
-      );
+interface EditableSectionProps {
+  section: Section;
+  index: number;
+  onRegenerate: (index: number, instruction: string) => Promise<void>;
+  isRegenerating: boolean;
+}
 
-    case "text":
-      return (
-        <div className="space-y-4">
-          {section.title && (
-            <h3 className="font-serif text-2xl font-bold text-foreground">{section.title}</h3>
-          )}
-          <div className="text-muted-foreground leading-relaxed whitespace-pre-line">
+const EditableSection = ({ section, index, onRegenerate, isRegenerating }: EditableSectionProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [instruction, setInstruction] = useState("");
+
+  const handleRegenerate = async () => {
+    if (!instruction.trim()) return;
+    await onRegenerate(index, instruction);
+    setIsEditing(false);
+    setInstruction("");
+  };
+
+  const renderContent = () => {
+    switch (section.type) {
+      case "intro":
+        return (
+          <div className="text-lg md:text-xl text-foreground leading-relaxed font-serif">
             {section.content}
           </div>
-        </div>
-      );
+        );
 
-    case "quote":
-      return <QuoteSection section={section} />;
+      case "text":
+        return (
+          <div className="space-y-4">
+            {section.title && <h3 className="font-serif text-2xl font-bold text-foreground">{section.title}</h3>}
+            <div className="text-muted-foreground leading-relaxed whitespace-pre-line">{section.content}</div>
+          </div>
+        );
 
-    case "data":
-      return (
-        <div className="zen-card p-6 space-y-4">
-          {section.title && (
-            <h3 className="font-serif text-xl font-bold text-foreground">{section.title}</h3>
-          )}
-          {section.content && (
-            <p className="text-muted-foreground text-sm">{section.content}</p>
-          )}
-          <DataChart section={section} />
-        </div>
-      );
+      case "quote":
+        return <QuoteSection section={section} />;
 
-    case "timeline":
-      return (
-        <div className="space-y-4">
-          {section.title && (
-            <h3 className="font-serif text-2xl font-bold text-foreground">{section.title}</h3>
-          )}
-          <TimelineSection section={section} />
-        </div>
-      );
+      case "data":
+        return (
+          <div className="zen-card p-6 space-y-4">
+            {section.title && <h3 className="font-serif text-xl font-bold text-foreground">{section.title}</h3>}
+            {section.content && <p className="text-muted-foreground text-sm">{section.content}</p>}
+            <DataChart section={section} />
+          </div>
+        );
 
-    case "comparison":
-      return (
-        <div className="space-y-4">
-          {section.title && (
-            <h3 className="font-serif text-2xl font-bold text-foreground">{section.title}</h3>
-          )}
-          <ComparisonSection section={section} />
-        </div>
-      );
+      case "timeline":
+        return (
+          <div className="space-y-4">
+            {section.title && <h3 className="font-serif text-2xl font-bold text-foreground">{section.title}</h3>}
+            <TimelineSection section={section} />
+          </div>
+        );
 
-    case "callout":
-      return (
-        <div className="zen-card p-6 border-l-4 border-primary bg-primary/5">
-          {section.title && (
-            <h4 className="font-serif font-bold text-foreground mb-2">{section.title}</h4>
-          )}
-          <p className="text-foreground">{section.content}</p>
-        </div>
-      );
+      case "comparison":
+        return (
+          <div className="space-y-4">
+            {section.title && <h3 className="font-serif text-2xl font-bold text-foreground">{section.title}</h3>}
+            <ComparisonSection section={section} />
+          </div>
+        );
 
-    case "conclusion":
-      return (
-        <div className="py-8 border-t border-border">
-          {section.title && (
-            <h3 className="font-serif text-2xl font-bold text-foreground mb-4">{section.title}</h3>
-          )}
-          <div className="text-lg text-foreground leading-relaxed">
-            {section.content}
+      case "callout":
+        return (
+          <div className="zen-card p-6 border-l-4 border-primary bg-primary/5">
+            {section.title && <h4 className="font-serif font-bold text-foreground mb-2">{section.title}</h4>}
+            <p className="text-foreground">{section.content}</p>
+          </div>
+        );
+
+      case "conclusion":
+        return (
+          <div className="py-8 border-t border-border">
+            {section.title && <h3 className="font-serif text-2xl font-bold text-foreground mb-4">{section.title}</h3>}
+            <div className="text-lg text-foreground leading-relaxed">{section.content}</div>
+          </div>
+        );
+
+      default:
+        return <div className="text-muted-foreground">{section.content}</div>;
+    }
+  };
+
+  return (
+    <div className="group relative">
+      {/* Edit Button */}
+      <button
+        onClick={() => setIsEditing(true)}
+        className="absolute -left-12 top-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-sm bg-secondary hover:bg-primary/20 text-muted-foreground hover:text-primary"
+        title="Regenerate this section"
+      >
+        <Edit3 className="w-4 h-4" />
+      </button>
+
+      {/* Content */}
+      <div className={isRegenerating ? "opacity-50" : ""}>
+        {renderContent()}
+      </div>
+
+      {/* Edit Panel */}
+      {isEditing && (
+        <div className="mt-4 p-4 bg-secondary/50 border border-border rounded-sm space-y-3 animate-fade-up">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">Regenerate this section</span>
+            <button onClick={() => setIsEditing(false)} className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <Textarea
+            placeholder="How should this section change?
+
+Examples:
+• Make this more analytical with specific data
+• Add a comparison table
+• Convert to a timeline
+• Make it more concise
+• Add industry statistics"
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            className="min-h-[100px] bg-card border-border text-foreground placeholder:text-muted-foreground"
+          />
+          <div className="flex gap-2">
+            <Button
+              variant="zen"
+              size="sm"
+              onClick={handleRegenerate}
+              disabled={!instruction.trim() || isRegenerating}
+            >
+              {isRegenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Regenerating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Regenerate
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+              Cancel
+            </Button>
           </div>
         </div>
-      );
-
-    default:
-      return (
-        <div className="text-muted-foreground">
-          {section.content}
-        </div>
-      );
-  }
+      )}
+    </div>
+  );
 };
 
-const ArtifactRenderer = ({ artifact }: ArtifactRendererProps) => {
+const ArtifactRenderer = ({ artifact, onUpdate, style = "zen-editorial" }: ArtifactRendererProps) => {
+  const { toast } = useToast();
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
+
+  const handleRegenerate = async (index: number, instruction: string) => {
+    setRegeneratingIndex(index);
+
+    try {
+      // Build context from surrounding sections
+      const contextParts = [
+        `Title: ${artifact.title}`,
+        `Subtitle: ${artifact.subtitle}`,
+        ...artifact.sections.slice(Math.max(0, index - 2), index + 3).map((s, i) => 
+          `Section ${index - 2 + i}: ${s.title || s.type} - ${s.content?.slice(0, 200)}...`
+        )
+      ];
+
+      const result = await regenerateSection(
+        index,
+        artifact.sections[index],
+        contextParts.join("\n"),
+        instruction,
+        style
+      );
+
+      if (result.success && result.section) {
+        const newSections = [...artifact.sections];
+        newSections[index] = result.section;
+        onUpdate({ ...artifact, sections: newSections });
+        toast({ title: "Section regenerated" });
+      } else {
+        toast({
+          title: "Regeneration failed",
+          description: result.error || "Unable to regenerate section",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Regeneration error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to regenerate section",
+        variant: "destructive",
+      });
+    } finally {
+      setRegeneratingIndex(null);
+    }
+  };
+
   return (
-    <article className="max-w-4xl mx-auto">
+    <article className="max-w-4xl mx-auto pl-12">
       {/* Header */}
       <header className="mb-12 pb-8 border-b border-border">
         <div className="flex items-center gap-4 mb-6">
@@ -298,6 +381,9 @@ const ArtifactRenderer = ({ artifact }: ArtifactRendererProps) => {
           <span className="flex items-center gap-1 text-sm text-muted-foreground">
             <Clock className="w-4 h-4" />
             {artifact.readTime}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {artifact.sections.length} sections
           </span>
         </div>
         <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-4">
@@ -322,10 +408,16 @@ const ArtifactRenderer = ({ artifact }: ArtifactRendererProps) => {
         </div>
       )}
 
-      {/* Sections */}
+      {/* Editable Sections */}
       <div className="space-y-10">
         {artifact.sections.map((section, index) => (
-          <SectionRenderer key={index} section={section} index={index} />
+          <EditableSection
+            key={index}
+            section={section}
+            index={index}
+            onRegenerate={handleRegenerate}
+            isRegenerating={regeneratingIndex === index}
+          />
         ))}
       </div>
 
@@ -343,6 +435,11 @@ const ArtifactRenderer = ({ artifact }: ArtifactRendererProps) => {
           </ul>
         </footer>
       )}
+
+      {/* Edit Hint */}
+      <div className="mt-12 text-center text-sm text-muted-foreground">
+        <p>Hover over any section and click <Edit3 className="w-3 h-3 inline" /> to regenerate it with custom instructions</p>
+      </div>
     </article>
   );
 };
