@@ -7,15 +7,7 @@ const corsHeaders = {
 
 const ZEN_SYSTEM_PROMPT = `You are ZEN Weekly — the flagship long-form intelligence, research, and visual journalism engine of ZEN AI Co.
 
-You do not generate blog posts. You generate archival-grade intelligence artifacts designed to survive scrutiny, time, and scale.
-
-Your outputs must feel like a fusion of:
-- a flagship global magazine feature
-- a think-tank white paper
-- a systems-level intelligence brief
-- a visual-first future atlas
-
-ZEN Weekly content is dense, cinematic, data-driven, structurally elegant, and publication-perfect.
+You generate archival-grade intelligence artifacts designed to survive scrutiny, time, and scale. Your outputs feel like a fusion of a flagship global magazine feature, a think-tank white paper, a systems-level intelligence brief, and a visual-first future atlas.
 
 CRITICAL OUTPUT FORMATTING:
 Your response MUST be valid JSON with this exact structure:
@@ -24,40 +16,56 @@ Your response MUST be valid JSON with this exact structure:
   "subtitle": "Compelling subtitle",
   "category": "CATEGORY_TAG",
   "readTime": "X min",
-  "sections": [
-    {
-      "type": "intro" | "text" | "quote" | "data" | "timeline" | "comparison" | "callout" | "conclusion",
-      "title": "Section title (optional)",
-      "content": "Main text content",
-      "data": { ...optional structured data for visualizations... }
-    }
-  ],
-  "keyMetrics": [
-    { "label": "Metric name", "value": "Value", "change": "+/-X%" }
-  ],
-  "sources": ["Source 1", "Source 2"]
+  "sections": [...],
+  "keyMetrics": [...],
+  "sources": [...]
 }
 
-Section types and their data structures:
-- "intro": Opening thesis with content text
-- "text": Standard prose section
-- "quote": { "quote": "...", "author": "...", "role": "..." }
-- "data": For charts/metrics - include data.chartType ("bar", "line", "pie", "area") and data.points array
-- "timeline": data.events array with { year, title, description }
-- "comparison": data.items array with { name, pros: [], cons: [] }
-- "callout": Important highlighted information
-- "conclusion": Final synthesis
+SECTION TYPES (use variety based on content):
+1. "intro" - Opening thesis, compelling hook
+2. "text" - Standard prose section with title and content
+3. "quote" - Include data: { quote, author, role }
+4. "data" - Charts/metrics: data: { chartType: "bar"|"line"|"pie"|"area", points: [{name, value}] }
+5. "timeline" - Historical progression: data: { events: [{year, title, description}] }
+6. "comparison" - Analysis: data: { items: [{name, pros:[], cons:[]}] }
+7. "callout" - Key insight highlight
+8. "conclusion" - Final synthesis
 
-CONTENT PHILOSOPHY:
-- Systems-First: Explain how parts interact, not just what happened
-- Numbers With Meaning: Metrics contextualized, compared, interpreted
-- No Hype Without Infrastructure: Connect claims to compute, capital, labor, energy, policy
+EDITORIAL PHILOSOPHY:
+- Systems-First: Explain how parts interact with causal chains
+- Numbers With Meaning: Contextualized, compared metrics
+- No Hype Without Infrastructure: Connect to compute, capital, labor, energy, policy
 - Temporal Awareness: Past → present → future trajectories
-- Global Lens: Note global spillovers and second-order effects
+- Global Lens: Note spillovers and second-order effects
 
-TONE: Serious but readable. Urgent but not sensational. Confident, not speculative unless labeled.
+TONE: Serious but readable. Urgent but not sensational. Confident.`;
 
-Generate rich, analytical content with multiple data visualizations, timelines, and structured insights.`;
+const LENGTH_CONFIGS = {
+  short: { 
+    sections: "4-6", 
+    dataViz: "1-2", 
+    words: "1,500-2,500",
+    instruction: "Create a focused, impactful piece" 
+  },
+  medium: { 
+    sections: "8-12", 
+    dataViz: "3-4", 
+    words: "4,000-6,000",
+    instruction: "Create a comprehensive analysis with multiple perspectives" 
+  },
+  long: { 
+    sections: "15-20", 
+    dataViz: "5-7", 
+    words: "10,000-15,000",
+    instruction: "Create an in-depth investigation covering all angles" 
+  },
+  book: { 
+    sections: "25-40", 
+    dataViz: "10-15", 
+    words: "25,000-50,000",
+    instruction: "Create a book-length exploration with chapters, extensive research, multiple data visualizations per topic, detailed timelines, and comprehensive analysis. Think of this as a 30-50 page intelligence report." 
+  },
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -65,22 +73,32 @@ serve(async (req) => {
   }
 
   try {
-    const { contentType, inputs, style, theme } = await req.json();
+    const { contentType, inputs, style, theme, length = "medium" } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    const lengthConfig = LENGTH_CONFIGS[length as keyof typeof LENGTH_CONFIGS] || LENGTH_CONFIGS.medium;
+
     // Build the user prompt from inputs
-    let userPrompt = `Generate a ${contentType || "article"} with the following specifications:\n\n`;
+    let userPrompt = `Generate a ${contentType || "article"} with these specifications:\n\n`;
+    userPrompt += `LENGTH: ${length.toUpperCase()} (${lengthConfig.sections} sections, ${lengthConfig.words} words)\n`;
+    userPrompt += `${lengthConfig.instruction}\n\n`;
     
-    if (inputs?.urls?.length) {
-      userPrompt += `URLS TO ANALYZE:\n${inputs.urls.join("\n")}\n\n`;
+    if (inputs?.scrapedContent?.length) {
+      userPrompt += `SOURCE CONTENT FROM URLS:\n`;
+      inputs.scrapedContent.forEach((item: { url: string; title: string; content: string }, i: number) => {
+        userPrompt += `\n--- SOURCE ${i + 1}: ${item.title || item.url} ---\n`;
+        userPrompt += item.content.slice(0, 15000); // Limit content per source
+        userPrompt += `\n`;
+      });
+      userPrompt += `\n`;
     }
     
     if (inputs?.text) {
-      userPrompt += `SOURCE TEXT:\n${inputs.text}\n\n`;
+      userPrompt += `SOURCE TEXT TO TRANSFORM:\n${inputs.text}\n\n`;
     }
     
     if (inputs?.topic) {
@@ -95,18 +113,18 @@ serve(async (req) => {
       userPrompt += `THEME: ${theme}\n`;
     }
 
-    userPrompt += `\nGenerate a comprehensive intelligence artifact with:
-- A powerful opening thesis
-- 6-10 substantial sections
-- At least 2 data visualization sections with chart data
-- A timeline section if historically relevant
-- Key metrics summary (3-5 metrics)
-- Clear sources
-- ZEN Weekly editorial quality
+    userPrompt += `\nGENERATE:
+- ${lengthConfig.sections} substantial sections using varied section types
+- ${lengthConfig.dataViz} data visualization sections with actual chart data
+- Timeline sections for historical/evolutionary topics
+- Comparison sections when analyzing alternatives
+- 3-5 key metrics with values and changes
+- Pull quotes from sources when available
+- Clear source citations
 
-Return ONLY valid JSON matching the specified structure.`;
+Return ONLY valid JSON matching the specified structure. Every data visualization must have complete chartType and points array.`;
 
-    console.log("Generating content with prompt length:", userPrompt.length);
+    console.log("Generating", length, "content. Prompt length:", userPrompt.length);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -115,12 +133,11 @@ Return ONLY valid JSON matching the specified structure.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro", // Using pro for longer content
         messages: [
           { role: "system", content: ZEN_SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
         ],
-        stream: false,
       }),
     });
 
@@ -152,14 +169,12 @@ Return ONLY valid JSON matching the specified structure.`;
     // Parse the JSON response
     let parsedContent;
     try {
-      // Extract JSON from potential markdown code blocks
       const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) || 
                         content.match(/```\n?([\s\S]*?)\n?```/);
       const jsonStr = jsonMatch ? jsonMatch[1] : content;
       parsedContent = JSON.parse(jsonStr.trim());
     } catch (parseError) {
       console.error("JSON parse error:", parseError);
-      // Return raw content if JSON parsing fails
       parsedContent = { 
         title: "Generated Content",
         subtitle: "",
@@ -171,7 +186,7 @@ Return ONLY valid JSON matching the specified structure.`;
       };
     }
 
-    console.log("Content generated successfully");
+    console.log("Content generated:", parsedContent.sections?.length, "sections");
 
     return new Response(
       JSON.stringify({ success: true, artifact: parsedContent }),

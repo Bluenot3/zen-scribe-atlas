@@ -5,34 +5,43 @@ import { Input } from "@/components/ui/input";
 import { 
   Link2, 
   FileText, 
-  Upload, 
   X, 
   Plus,
   Sparkles,
-  BookOpen,
   Mail,
   FileBarChart,
   Briefcase,
-  BookMarked
+  BookMarked,
+  BookOpen,
+  Loader2
 } from "lucide-react";
-import { ContentType, StyleType, ThemeType } from "@/lib/api/generate";
+import { ContentType, StyleType, ThemeType, LengthType } from "@/lib/api/generate";
 
 interface InputPanelProps {
   onGenerate: (
     contentType: ContentType,
     inputs: { urls?: string[]; text?: string; topic?: string },
     style: StyleType,
-    theme: ThemeType
+    theme: ThemeType,
+    length: LengthType
   ) => void;
   isGenerating: boolean;
+  isScraping: boolean;
 }
 
 const contentTypes: { id: ContentType; label: string; icon: React.ElementType; description: string }[] = [
-  { id: "article", label: "Article", icon: FileText, description: "Long-form magazine feature" },
-  { id: "newsletter", label: "Newsletter", icon: Mail, description: "Weekly intelligence briefing" },
-  { id: "report", label: "Report", icon: FileBarChart, description: "Research whitepaper" },
-  { id: "brief", label: "Executive Brief", icon: Briefcase, description: "C-suite summary" },
-  { id: "book-chapter", label: "Book Chapter", icon: BookMarked, description: "20-50 page analysis" },
+  { id: "article", label: "Article", icon: FileText, description: "Magazine feature" },
+  { id: "newsletter", label: "Newsletter", icon: Mail, description: "Weekly briefing" },
+  { id: "report", label: "Report", icon: FileBarChart, description: "Research paper" },
+  { id: "brief", label: "Brief", icon: Briefcase, description: "Executive summary" },
+  { id: "book-chapter", label: "Book", icon: BookMarked, description: "Long-form analysis" },
+];
+
+const lengths: { id: LengthType; label: string; description: string; pages: string }[] = [
+  { id: "short", label: "Short", description: "Quick read", pages: "2-4 pages" },
+  { id: "medium", label: "Medium", description: "Standard article", pages: "6-10 pages" },
+  { id: "long", label: "Long", description: "Deep dive", pages: "15-25 pages" },
+  { id: "book", label: "Book", description: "Comprehensive", pages: "30-50 pages" },
 ];
 
 const styles: { id: StyleType; label: string }[] = [
@@ -52,7 +61,7 @@ const themes: { id: ThemeType; label: string }[] = [
   { id: "comparative", label: "Comparative" },
 ];
 
-const InputPanel = ({ onGenerate, isGenerating }: InputPanelProps) => {
+const InputPanel = ({ onGenerate, isGenerating, isScraping }: InputPanelProps) => {
   const [activeTab, setActiveTab] = useState<"topic" | "url" | "text">("topic");
   const [topic, setTopic] = useState("");
   const [urls, setUrls] = useState<string[]>([""]);
@@ -60,6 +69,7 @@ const InputPanel = ({ onGenerate, isGenerating }: InputPanelProps) => {
   const [contentType, setContentType] = useState<ContentType>("article");
   const [style, setStyle] = useState<StyleType>("zen-editorial");
   const [theme, setTheme] = useState<ThemeType>("visual");
+  const [length, setLength] = useState<LengthType>("medium");
 
   const addUrl = () => setUrls([...urls, ""]);
   const removeUrl = (index: number) => setUrls(urls.filter((_, i) => i !== index));
@@ -85,13 +95,15 @@ const InputPanel = ({ onGenerate, isGenerating }: InputPanelProps) => {
 
     if (Object.keys(inputs).length === 0) return;
 
-    onGenerate(contentType, inputs, style, theme);
-  }, [activeTab, topic, urls, pastedText, contentType, style, theme, onGenerate]);
+    onGenerate(contentType, inputs, style, theme, length);
+  }, [activeTab, topic, urls, pastedText, contentType, style, theme, length, onGenerate]);
 
   const canGenerate = 
     (activeTab === "topic" && topic.trim()) ||
     (activeTab === "url" && urls.some(u => u.trim())) ||
     (activeTab === "text" && pastedText.trim());
+
+  const isProcessing = isGenerating || isScraping;
 
   return (
     <div className="space-y-8">
@@ -103,7 +115,8 @@ const InputPanel = ({ onGenerate, isGenerating }: InputPanelProps) => {
             <button
               key={type.id}
               onClick={() => setContentType(type.id)}
-              className={`p-4 rounded-sm border text-left transition-all duration-300 ${
+              disabled={isProcessing}
+              className={`p-4 rounded-sm border text-left transition-all duration-300 disabled:opacity-50 ${
                 contentType === type.id
                   ? "border-primary bg-primary/10"
                   : "border-border bg-card hover:border-primary/50"
@@ -111,7 +124,30 @@ const InputPanel = ({ onGenerate, isGenerating }: InputPanelProps) => {
             >
               <type.icon className={`w-5 h-5 mb-2 ${contentType === type.id ? "text-primary" : "text-muted-foreground"}`} />
               <div className="font-medium text-sm text-foreground">{type.label}</div>
-              <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{type.description}</div>
+              <div className="text-xs text-muted-foreground mt-1">{type.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Length Selection */}
+      <div>
+        <label className="zen-label mb-4 block">Output Length</label>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {lengths.map((l) => (
+            <button
+              key={l.id}
+              onClick={() => setLength(l.id)}
+              disabled={isProcessing}
+              className={`p-4 rounded-sm border text-left transition-all duration-300 disabled:opacity-50 ${
+                length === l.id
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-card hover:border-primary/50"
+              }`}
+            >
+              <div className="font-medium text-sm text-foreground">{l.label}</div>
+              <div className="text-xs text-muted-foreground">{l.description}</div>
+              <div className="zen-mono text-xs text-primary mt-2">{l.pages}</div>
             </button>
           ))}
         </div>
@@ -129,7 +165,8 @@ const InputPanel = ({ onGenerate, isGenerating }: InputPanelProps) => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as "topic" | "url" | "text")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-sm text-sm font-medium transition-all duration-300 ${
+              disabled={isProcessing}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-sm text-sm font-medium transition-all duration-300 disabled:opacity-50 ${
                 activeTab === tab.id
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -153,6 +190,7 @@ Examples:
 • Climate adaptation strategies for coastal megacities"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
+              disabled={isProcessing}
               className="min-h-[160px] bg-card border-border text-foreground placeholder:text-muted-foreground resize-none"
             />
           </div>
@@ -168,6 +206,7 @@ Examples:
                   placeholder="https://example.com/article"
                   value={url}
                   onChange={(e) => updateUrl(index, e.target.value)}
+                  disabled={isProcessing}
                   className="bg-card border-border text-foreground placeholder:text-muted-foreground"
                 />
                 {urls.length > 1 && (
@@ -175,6 +214,7 @@ Examples:
                     variant="outline"
                     size="icon"
                     onClick={() => removeUrl(index)}
+                    disabled={isProcessing}
                     className="shrink-0"
                   >
                     <X className="w-4 h-4" />
@@ -183,12 +223,14 @@ Examples:
               </div>
             ))}
             {urls.length < 10 && (
-              <Button variant="outline" onClick={addUrl} className="w-full">
+              <Button variant="outline" onClick={addUrl} disabled={isProcessing} className="w-full">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Another URL
               </Button>
             )}
-            <p className="text-xs text-muted-foreground">Add up to 10 URLs for analysis and synthesis</p>
+            <p className="text-xs text-muted-foreground">
+              URLs will be scraped and their content analyzed. Add up to 10 sources.
+            </p>
           </div>
         )}
 
@@ -201,6 +243,7 @@ Examples:
 The AI will analyze, expand, and transform this content into a ZEN Weekly intelligence artifact with proper structure, data visualizations, and editorial polish."
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
+              disabled={isProcessing}
               className="min-h-[200px] bg-card border-border text-foreground placeholder:text-muted-foreground resize-none"
             />
             <p className="text-xs text-muted-foreground">
@@ -219,7 +262,8 @@ The AI will analyze, expand, and transform this content into a ZEN Weekly intell
               <button
                 key={s.id}
                 onClick={() => setStyle(s.id)}
-                className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all duration-300 ${
+                disabled={isProcessing}
+                className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all duration-300 disabled:opacity-50 ${
                   style === s.id
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -238,7 +282,8 @@ The AI will analyze, expand, and transform this content into a ZEN Weekly intell
               <button
                 key={t.id}
                 onClick={() => setTheme(t.id)}
-                className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all duration-300 ${
+                disabled={isProcessing}
+                className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all duration-300 disabled:opacity-50 ${
                   theme === t.id
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -256,21 +301,32 @@ The AI will analyze, expand, and transform this content into a ZEN Weekly intell
         variant="zen"
         size="xl"
         onClick={handleGenerate}
-        disabled={!canGenerate || isGenerating}
+        disabled={!canGenerate || isProcessing}
         className="w-full group"
       >
-        {isGenerating ? (
+        {isScraping ? (
           <>
-            <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-            Generating Intelligence Artifact...
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Scraping URLs...
+          </>
+        ) : isGenerating ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Generating {length === "book" ? "Book" : "Artifact"}...
           </>
         ) : (
           <>
             <Sparkles className="w-4 h-4" />
-            Generate Artifact
+            Generate {length === "book" ? "Book" : "Artifact"}
           </>
         )}
       </Button>
+
+      {length === "book" && (
+        <p className="text-xs text-center text-muted-foreground">
+          Book-length generation may take 1-2 minutes to complete.
+        </p>
+      )}
     </div>
   );
 };

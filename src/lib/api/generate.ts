@@ -3,11 +3,19 @@ import { supabase } from "@/integrations/supabase/client";
 export type ContentType = "article" | "newsletter" | "report" | "brief" | "book-chapter";
 export type StyleType = "zen-editorial" | "economist" | "narrative" | "clinical" | "investor" | "futurist";
 export type ThemeType = "minimal" | "dense" | "visual" | "timeline" | "comparative";
+export type LengthType = "short" | "medium" | "long" | "book";
+
+export interface ScrapedContent {
+  url: string;
+  title: string;
+  content: string;
+}
 
 export interface GenerationInputs {
   urls?: string[];
   text?: string;
   topic?: string;
+  scrapedContent?: ScrapedContent[];
 }
 
 export interface Section {
@@ -47,14 +55,40 @@ export interface GenerationResponse {
   error?: string;
 }
 
+export interface ScrapeResponse {
+  success: boolean;
+  results?: Array<{
+    url: string;
+    success: boolean;
+    content?: string;
+    title?: string;
+    error?: string;
+  }>;
+  error?: string;
+}
+
+export async function scrapeUrls(urls: string[]): Promise<ScrapeResponse> {
+  const { data, error } = await supabase.functions.invoke("scrape-urls", {
+    body: { urls },
+  });
+
+  if (error) {
+    console.error("Scrape error:", error);
+    return { success: false, error: error.message };
+  }
+
+  return data as ScrapeResponse;
+}
+
 export async function generateArtifact(
   contentType: ContentType,
   inputs: GenerationInputs,
   style: StyleType = "zen-editorial",
-  theme: ThemeType = "visual"
+  theme: ThemeType = "visual",
+  length: LengthType = "medium"
 ): Promise<GenerationResponse> {
   const { data, error } = await supabase.functions.invoke("generate-artifact", {
-    body: { contentType, inputs, style, theme },
+    body: { contentType, inputs, style, theme, length },
   });
 
   if (error) {
@@ -63,4 +97,29 @@ export async function generateArtifact(
   }
 
   return data as GenerationResponse;
+}
+
+export interface RegenerateResponse {
+  success: boolean;
+  section?: Section;
+  error?: string;
+}
+
+export async function regenerateSection(
+  sectionIndex: number,
+  section: Section,
+  context: string,
+  instruction: string,
+  style: StyleType = "zen-editorial"
+): Promise<RegenerateResponse> {
+  const { data, error } = await supabase.functions.invoke("regenerate-section", {
+    body: { sectionIndex, section, context, instruction, style },
+  });
+
+  if (error) {
+    console.error("Regenerate error:", error);
+    return { success: false, error: error.message };
+  }
+
+  return data as RegenerateResponse;
 }
